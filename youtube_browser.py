@@ -31,16 +31,29 @@ def get_authenticated_service(args):
 			scope=SCOPE, message=MISSING_CLIENT_SECRET_MESSAGE)
 		credentials = run_flow(flow, storage, args)
 		
-	return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, http=credentials.authorize(http2lib.Http()))
+	return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, http=credentials.authorize(httplib2.Http()))
 	
 def saveChannelList(id):
 	f = open("channel_list.csv", "w")
 	f.write(id)
 	f.close()
-	
-def fetchSubscriptions(youtube, )
-{
 
+	
+#Get first page, return list of channel ids, and recurse through additional pages
+def fetchSubscriptionPage(youtube, channel_id, sub_list, page=None):
+	subscription_response = youtube.subscriptions().list(
+		part='snippet',
+		channelId = channel_id,
+		maxResults = 2,
+		pageToken = page
+	).execute()
+	for sub in subscription_response["items"]:
+		sub_list.append({"channel_id":sub["snippet"]["resourceId"]["channelId"]})
+		
+	#Recurse to the next token if there is one.
+	if "nextPageToken" in subscription_response:
+		sub_list = fetchSubscriptionPage(youtube, channel_id, sub_list, subscription_response["nextPageToken"])
+	return sub_list
 	
 	
 if __name__ == "__main__":
@@ -50,7 +63,12 @@ if __name__ == "__main__":
 		default=newname)
 	args = argparser.parse_args()
 	saveChannelList(newname)
+	#Make API object
+	youtube = get_authenticated_service(args)
 	
-youtube = get_authenticated_service(args)
-try:
-	channel_title = 
+	try:
+		channel_title = fetchSubscriptionPage(youtube, newname, [])
+	except HttpError, e:
+		print "Error %d: %s\n" % (e.resp.status, e.content)
+	else:
+		print channel_title
